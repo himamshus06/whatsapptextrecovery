@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced WhatsApp Chat Analytics & Viewer</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wa: {
+                            teal: '#008069',
+                            tealLight: '#00a884',
+                            bgLight: '#efeae2',
+                            bgDark: '#0b141a',
+                            bubbleInLight: '#ffffff',
+                            bubbleInDark: '#202c33',
+                            bubbleOutLight: '#d9fdd3',
+                            bubbleOutDark: '#005c4b',
+                            textMainLight: '#111b21',
+                            textMainDark: '#e9edef',
+                            metaLight: '#8696a0',
+                            tickBlue: '#53bdeb'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .chat-bg-pattern {
+            background-blend-mode: overlay;
+            background-size: cover;
+            background-position: center;
+        }
+        .dark .chat-bg-pattern {
+            background-blend-mode: soft-light;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex justify-center items-center p-0 md:p-4 transition-colors duration-200">
+
+    <div id="main-dashboard" class="w-full h-screen md:h-[92vh] max-w-6xl bg-white dark:bg-[#111b21] rounded-none md:rounded-xl shadow-2xl flex flex-col md:flex-row overflow-hidden border border-slate-200 dark:border-slate-800 transition-colors duration-200">
+        
+        <aside class="w-full md:w-[42%] border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-[#111b21]">
+            <div class="p-4 bg-slate-100 dark:bg-[#202c33] border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">📊</span>
+                    <h1 class="text-md font-bold text-slate-800 dark:text-slate-200 tracking-wide uppercase">Workspace</h1>
+                </div>
+                <div class="flex gap-2">
+                    <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" title="Toggle Dark/Light Mode">🌓</button>
+                    <button id="reset-workspace" class="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-950 text-red-600 dark:text-red-400 hidden" title="Reset Log Session">🔄</button>
+                </div>
+            </div>
+
+            <div id="upload-stage" class="flex-1 p-6 flex flex-col justify-center items-center text-center overflow-y-auto">
+                <div class="w-12 h-12 bg-wa-tealLight/10 rounded-full flex items-center justify-center text-2xl mb-3 text-wa-tealLight">📂</div>
+                <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Import WhatsApp History</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-xs mb-4">Upload text logs and customize identity/appearance profiles locally.</p>
+                
+                <div class="w-full space-y-3 max-w-sm text-left">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Select Exported Data File</label>
+                        <input type="file" id="whatsapp-file-input" accept=".txt" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-wa-teal file:text-white hover:file:bg-wa-tealLight cursor-pointer bg-white dark:bg-[#202c33] p-1.5 rounded-lg border border-slate-300 dark:border-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Identify Right-Side Username</label>
+                        <input type="text" id="self-username" placeholder="e.g., Himamshu" class="w-full p-2 text-xs bg-white dark:bg-[#202c33] text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-wa-tealLight">
+                    </div>
+                    
+                    <div class="border-t border-slate-200 dark:border-slate-800 pt-3 space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-wa-tealLight">Appearance Customization</h4>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Custom Chat Wallpaper Image</label>
+                            <input type="file" id="wallpaper-input" accept="image/*" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-200 dark:file:bg-slate-700 file:text-slate-700 dark:file:text-slate-200 hover:file:bg-slate-300 cursor-pointer bg-white dark:bg-[#202c33] p-1 rounded border border-slate-300 dark:border-slate-700">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">Right-Side Avatar</label>
+                                <input type="file" id="avatar-right-input" accept="image/*" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-1 file:py-1 file:px-1.5 file:border-0 file:text-[10px] file:bg-slate-200 dark:file:bg-slate-700 cursor-pointer bg-white dark:bg-[#202c33] p-1 rounded border border-slate-300 dark:border-slate-700">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">Left-Side Avatar</label>
+                                <input type="file" id="avatar-left-input" accept="image/*" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-1 file:py-1 file:px-1.5 file:border-0 file:text-[10px] file:bg-slate-200 dark:file:bg-slate-700 cursor-pointer bg-white dark:bg-[#202c33] p-1 rounded border border-slate-300 dark:border-slate-700">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="parse-trigger" class="w-full py-2 bg-wa-teal text-white text-xs font-bold rounded-lg hover:bg-wa-tealLight tracking-wider uppercase transition shadow pt-2">Parse & Analyze Data</button>
+                </div>
+            </div>
+
+            <div id="analytics-stage" class="flex-1 overflow-y-auto p-4 space-y-4 hidden">
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-white dark:bg-[#202c33] p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-0.5">Total Messages</span>
+                        <span id="metric-total-msgs" class="text-lg font-black text-wa-tealLight">0</span>
+                    </div>
+                    <div class="bg-white dark:bg-[#202c33] p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-0.5">Participants</span>
+                        <span id="metric-participants" class="text-lg font-black text-blue-500">0</span>
+                    </div>
+                    <div class="bg-white dark:bg-[#202c33] p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-0.5">Media Files</span>
+                        <span id="metric-media" class="text-lg font-black text-amber-500">0</span>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#202c33] p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Activity Breakdown</h3>
+                    <div class="relative h-44 w-full">
+                        <canvas id="chart-activity-distribution"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#202c33] p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Timeline Heatmap</h3>
+                    <div class="relative h-44 w-full">
+                        <canvas id="chart-hourly-heatmap"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#202c33] p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Participant Matrix</h3>
+                    <div id="participants-list" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative bg-slate-100 dark:bg-[#0b141a]">
+            <div id="viewer-placeholder" class="absolute inset-0 bg-wa-bgLight dark:bg-wa-bgDark chat-bg-pattern flex flex-col items-center justify-center p-6 text-center z-20 transition-opacity duration-300">
+                <div class="max-w-xs space-y-3">
+                    <div class="text-6xl mb-2">💬</div>
+                    <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">WhatsApp Chat Frame</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Your conversations will load seamlessly here.</p>
+                </div>
+            </div>
+
+            <header class="p-3 bg-wa-teal dark:bg-[#202c33] text-white flex justify-between items-center z-10 shadow-sm shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="chat-avatar" class="w-10 h-10 rounded-full bg-slate-400 bg-cover bg-center flex items-center justify-center font-bold text-sm uppercase text-white shadow-inner overflow-hidden">WA</div>
+                    <div>
+                        <h2 id="chat-header-title" class="text-sm font-semibold max-w-[200px] md:max-w-sm truncate">Chat Thread</h2>
+                        <span id="chat-header-subtitle" class="text-[11px] text-slate-200 dark:text-wa-metaLight block">Ready to parse logs</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="toggle-bubble-direction" class="p-2 rounded-md bg-black/15 hover:bg-black/25 text-white text-xs font-medium flex items-center gap-1 transition" title="Swap Sides & Update Header Contact Context">
+                        ⇄ Swap Sides
+                    </button>
+                    <button id="capture-screenshot" class="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-white font-medium text-xs flex items-center gap-1" title="Capture Snapshot Image">
+                        <span>📸</span> Snapshot
+                    </button>
+                </div>
+            </header>
+
+            <section class="bg-slate-50 dark:bg-[#111b21] border-b border-slate-200 dark:border-slate-900 px-3 py-2 flex items-center gap-2 shrink-0 z-10">
+                <div class="relative flex-1">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs opacity-60">🔍</span>
+                    <input type="text" id="live-search" placeholder="Search message content..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-md bg-white dark:bg-[#202c33] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-wa-tealLight">
+                </div>
+                <input type="date" id="calendar-jump" class="py-1.5 px-2 text-xs rounded-md bg-white dark:bg-[#202c33] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-wa-tealLight">
+            </section>
+
+            <div id="chat-viewport" class="flex-1 overflow-y-auto p-4 space-y-2 bg-wa-bgLight dark:bg-wa-bgDark chat-bg-pattern relative">
+                <div id="scroll-anchor-top" class="h-2 w-full"></div>
+                <div id="chat-dynamic-content-area" class="space-y-2"></div>
+                <div id="scroll-anchor-bottom" class="h-2 w-full"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Memory Architecture & Dynamic Virtual Loading Bounds
+        let masterChatRecords = [];
+        let matchingSearchRecords = [];
+        let isSearchingActive = false;
+        let assignedTargetUser = '';
+        let isInvertedViewDirection = false; 
+        const userColorRegistry = {};
+
+        // Custom Media Base64/ObjectURIs Hooks Store
+        let customWallpaperUrl = 'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png';
+        let customAvatarRightUrl = '';
+        let customAvatarLeftUrl = '';
+
+        // Virtual Scrolling Threshold Parameters (Chunking Config)
+        const CHUNK_SIZE = 200; 
+        let lowerLoadedIndex = 0;
+        let upperLoadedIndex = 0;
+
+        // Chart Instance References
+        let allocationChartInstance = null;
+        let timelineChartInstance = null;
+
+        // Cache DOM Pointers
+        const waFileInput = document.getElementById('whatsapp-file-input');
+        const selfUsernameInput = document.getElementById('self-username');
+        const wallpaperInput = document.getElementById('wallpaper-input');
+        const avatarRightInput = document.getElementById('avatar-right-input');
+        const avatarLeftInput = document.getElementById('avatar-left-input');
+        
+        const parseTriggerBtn = document.getElementById('parse-trigger');
+        const uploadStage = document.getElementById('upload-stage');
+        const analyticsStage = document.getElementById('analytics-stage');
+        const viewerPlaceholder = document.getElementById('viewer-placeholder');
+        const chatViewport = document.getElementById('chat-viewport');
+        const dynamicContentArea = document.getElementById('chat-dynamic-content-area');
+        const resetWorkspaceBtn = document.getElementById('reset-workspace');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const toggleBubbleDirectionBtn = document.getElementById('toggle-bubble-direction');
+        
+        const chatHeaderTitle = document.getElementById('chat-header-title');
+        const chatHeaderSubtitle = document.getElementById('chat-header-subtitle');
+        const chatAvatar = document.getElementById('chat-avatar');
+        
+        const liveSearchInput = document.getElementById('live-search');
+        const calendarJumpInput = document.getElementById('calendar-jump');
+        const captureScreenshotBtn = document.getElementById('capture-screenshot');
+
+        const colorPaletteClasses = [
+            'text-blue-500 font-bold', 'text-emerald-500 font-bold', 'text-amber-500 font-bold',
+            'text-purple-500 font-bold', 'text-cyan-500 font-bold', 'text-pink-500 font-bold'
+        ];
+
+        // Attach Event Pipelines
+        parseTriggerBtn.addEventListener('click', executionPipeline);
+        themeToggleBtn.addEventListener('click', () => document.documentElement.classList.toggle('dark'));
+        resetWorkspaceBtn.addEventListener('click', flushStateWorkspace);
+        liveSearchInput.addEventListener('input', runContentFilteringSearch);
+        calendarJumpInput.addEventListener('change', focusTimelineDateAnchor);
+        captureScreenshotBtn.addEventListener('click', generateChatCapturePng);
+        toggleBubbleDirectionBtn.addEventListener('click', swapBubbleRenderDirections);
+        
+        // Listeners updating assets memory hooks dynamically
+        wallpaperInput.addEventListener('change', (e) => handleAssetUrlExtraction(e, url => { customWallpaperUrl = url; applyActiveWallpaperAsset(); }));
+        avatarRightInput.addEventListener('change', (e) => handleAssetUrlExtraction(e, url => { customAvatarRightUrl = url; updateHeaderIdentityProperties(); }));
+        avatarLeftInput.addEventListener('change', (e) => handleAssetUrlExtraction(e, url => { customAvatarLeftUrl = url; updateHeaderIdentityProperties(); }));
+
+        // Dynamic Intersection & Native Scroll Optimization Hooks
+        chatViewport.addEventListener('scroll', manageViewportScrollWindowThrottled);
+
+        // Pre-apply setup defaults on initialization loops
+        applyActiveWallpaperAsset();
+
+        function handleAssetUrlExtraction(event, callbackClosure) {
+            const structuralFileTarget = event.target.files[0];
+            if (!structuralFileTarget) return;
+            const tempReader = new FileReader();
+            tempReader.onload = (e) => callbackClosure(e.target.result);
+            tempReader.readAsDataURL(structuralFileTarget);
+        }
+
+        function applyActiveWallpaperAsset() {
+            chatViewport.style.backgroundImage = `url('${customWallpaperUrl}')`;
+        }
+
+        function executionPipeline() {
+            const uploadedFile = waFileInput.files[0];
+            assignedTargetUser = selfUsernameInput.value.trim();
+
+            if (!uploadedFile) {
+                alert("Kindly load a valid standard source export file logs text stream.");
+                return;
+            }
+
+            const dataStreamReader = new FileReader();
+            dataStreamReader.onload = function(event) {
+                masterChatRecords = compileLogBuffers(event.target.result);
+
+                if (masterChatRecords.length === 0) {
+                    alert("No messaging structures identified during chunk processing parsing routines.");
+                    return;
+                }
+
+                if (!assignedTargetUser && masterChatRecords.length > 0) {
+                    assignedTargetUser = masterChatRecords[0].senderIdentity;
+                    selfUsernameInput.value = assignedTargetUser;
+                }
+
+                uploadStage.classList.add('hidden');
+                viewerPlaceholder.classList.add('opacity-0', 'pointer-events-none');
+                analyticsStage.classList.remove('hidden');
+                resetWorkspaceBtn.classList.remove('hidden');
+
+                assembleAnalyticalDashboards();
+                initializeVirtualizedViewBounds();
+            };
+            dataStreamReader.readAsText(uploadedFile);
+        }
+
+        function compileLogBuffers(rawText) {
+            const dataBufferLines = rawText.split(/\r?\n/);
+            const structuresAccumulator = [];
+            const systemLogAnchorRegex = /^\[?(\d{1,4}[\/\.\-]\d{1,2}[\/\.\-]\d{1,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?\s?[ap]m?|\d{1,2}:\d{2}(?::\d{2})?)\]?\s?[\-\:]\s([^:]+):\s(.*)$/i;
+
+            let pointerMessageObj = null;
+
+            for (let index = 0; index < dataBufferLines.length; index++) {
+                const targetedLine = dataBufferLines[index];
+                if (!targetedLine.trim()) continue;
+
+                const logicMatches = targetedLine.match(systemLogAnchorRegex);
+
+                if (logicMatches) {
+                    if (pointerMessageObj) structuresAccumulator.push(pointerMessageObj);
+
+                    const extractedDate = logicMatches[1];
+                    const extractedTime = logicMatches[2];
+                    const isolatedSender = logicMatches[3].trim();
+                    const isolatedBody = logicMatches[4];
+
+                    if (isolatedSender.includes("security code") || isolatedBody.includes("end-to-end encrypted")) {
+                        pointerMessageObj = null;
+                        continue;
+                    }
+
+                    pointerMessageObj = {
+                        dateStamp: mapUnifiedDateIndex(extractedDate),
+                        rawDate: extractedDate,
+                        timeStamp: extractedTime.toLowerCase(),
+                        senderIdentity: isolatedSender,
+                        bodyPayload: isolatedBody
+                    };
+                } else {
+                    if (pointerMessageObj) {
+                        pointerMessageObj.bodyPayload += "\n" + targetedLine;
+                    }
+                }
+            }
+            if (pointerMessageObj) structuresAccumulator.push(pointerMessageObj);
+            return structuresAccumulator;
+        }
+
+        function mapUnifiedDateIndex(dateStringToken) {
+            const standardizedToken = dateStringToken.replace(/[\[\]]/g, '').trim();
+            const segments = standardizedToken.split(/[\/\.\-]/);
+            if (segments.length === 3) {
+                if (segments[0].length === 4) return `${segments[0]}-${segments[1].padStart(2, '0')}-${segments[2].padStart(2, '0')}`;
+                let computedYear = segments[2];
+                if (computedYear.length === 2) computedYear = "20" + computedYear;
+                return `${computedYear}-${segments[1].padStart(2, '0')}-${segments[0].padStart(2, '0')}`;
+            }
+            return dateStringToken;
+        }
+
+        function assembleAnalyticalDashboards() {
+            const aggregateMessageCount = masterChatRecords.length;
+            const absoluteParticipantSet = [...new Set(masterChatRecords.map(item => item.senderIdentity))];
+            const mediaVolumeCount = masterChatRecords.filter(msg => 
+                msg.bodyPayload.includes("<Media omitted>") || msg.bodyPayload.includes("📷 photo") || msg.bodyPayload.includes("🎵 audio")
+            ).length;
+
+            document.getElementById('metric-total-msgs').textContent = aggregateMessageCount.toLocaleString();
+            document.getElementById('metric-participants').textContent = absoluteParticipantSet.length.toLocaleString();
+            document.getElementById('metric-media').textContent = mediaVolumeCount.toLocaleString();
+
+            const frequencyMapping = {};
+            const hourlyDistributionMatrix = Array(24).fill(0);
+
+            masterChatRecords.forEach(msg => {
+                frequencyMapping[msg.senderIdentity] = (frequencyMapping[msg.senderIdentity] || 0) + 1;
+                const matchHours = msg.timeStamp.match(/^(\d{1,2})/);
+                if (matchHours) {
+                    let hourValue = parseInt(matchHours[1]);
+                    if (msg.timeStamp.includes('pm') && hourValue < 12) hourValue += 12;
+                    if (msg.timeStamp.includes('am') && hourValue === 12) hourValue = 0;
+                    hourlyDistributionMatrix[hourValue]++;
+                }
+            });
+
+            const listingsContainer = document.getElementById('participants-list');
+            listingsContainer.innerHTML = '';
+            const orderedParticipantsList = Object.entries(frequencyMapping).sort((a, b) => b[1] - a[1]);
+            
+            orderedParticipantsList.forEach(([user, volume]) => {
+                const calculationRatio = ((volume / aggregateMessageCount) * 100).toFixed(1);
+                const tableRow = document.createElement('div');
+                tableRow.className = "flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300";
+                tableRow.innerHTML = `<span class="font-medium truncate max-w-[160px]">${sanitizeInputBlocks(user)}</span><span class="text-slate-400 font-mono">${volume} (${calculationRatio}%)</span>`;
+                listingsContainer.appendChild(tableRow);
+            });
+
+            if (allocationChartInstance) allocationChartInstance.destroy();
+            allocationChartInstance = new Chart(document.getElementById('chart-activity-distribution').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: orderedParticipantsList.map(p => p[0]).slice(0, 5),
+                    datasets: [{ data: orderedParticipantsList.map(p => p[1]).slice(0, 5), backgroundColor: ['#00a884', '#3b82f6', '#f59e0b', '#a855f7', '#06b6d4'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
+            });
+
+            if (timelineChartInstance) timelineChartInstance.destroy();
+            timelineChartInstance = new Chart(document.getElementById('chart-hourly-heatmap').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{ data: hourlyDistributionMatrix, backgroundColor: 'rgba(0, 168, 132, 0.75)', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // Initialize Chunk Pointers for Virtual Window Loading Context
+        function initializeVirtualizedViewBounds() {
+            const activeDataSet = isSearchingActive ? matchingSearchRecords : masterChatRecords;
+            
+            upperLoadedIndex = activeDataSet.length;
+            lowerLoadedIndex = Math.max(0, upperLoadedIndex - CHUNK_SIZE);
+
+            updateHeaderIdentityProperties();
+            renderActiveViewportChunkRange(false);
+            chatViewport.scrollTop = chatViewport.scrollHeight;
+        }
+
+        // Updates header titles, status configurations, and customizable user avatars context parameters
+        function updateHeaderIdentityProperties() {
+            const activeDataSet = isSearchingActive ? matchingSearchRecords : masterChatRecords;
+            const isolatedExternalUsers = [...new Set(masterChatRecords.map(m => m.senderIdentity).filter(name => name !== assignedTargetUser))];
+            
+            const standardOppositePartyName = isolatedExternalUsers.length > 0 ? isolatedExternalUsers.join(', ') : "Conversation Sandbox";
+            const mainIdentityName = assignedTargetUser || "Right User";
+
+            // If layout orientation is standard: header displays the Opposing User (Left User context)
+            // If layout orientation is inverted: header switches to display the Main User (Right User context)
+            if (!isInvertedViewDirection) {
+                chatHeaderTitle.textContent = standardOppositePartyName;
+                chatAvatar.textContent = standardOppositePartyName.substring(0, 2);
+                if (customAvatarLeftUrl) {
+                    chatAvatar.style.backgroundImage = `url('${customAvatarLeftUrl}')`;
+                    chatAvatar.textContent = '';
+                } else {
+                    chatAvatar.style.backgroundImage = '';
+                }
+            } else {
+                chatHeaderTitle.textContent = mainIdentityName;
+                chatAvatar.textContent = mainIdentityName.substring(0, 2);
+                if (customAvatarRightUrl) {
+                    chatAvatar.style.backgroundImage = `url('${customAvatarRightUrl}')`;
+                    chatAvatar.textContent = '';
+                } else {
+                    chatAvatar.style.backgroundImage = '';
+                }
+            }
+
+            chatHeaderSubtitle.textContent = `Conversation contains ${activeDataSet.length} records`;
+        }
+
+        // Swaps user bubble rendering alignments and forces header updates updates safely
+        function swapBubbleRenderDirections() {
+            isInvertedViewDirection = !isInvertedViewDirection;
+            const currentScrollFraction = chatViewport.scrollTop / (chatViewport.scrollHeight || 1);
+            
+            updateHeaderIdentityProperties();
+            renderActiveViewportChunkRange(false);
+            chatViewport.scrollTop = chatViewport.scrollHeight * currentScrollFraction;
+        }
+
+        // Render target segment elements dynamically matching active view windows
+        function renderActiveViewportChunkRange(appendAtTop = false) {
+            const activeDataSet = isSearchingActive ? matchingSearchRecords : masterChatRecords;
+            
+            const primaryScrollHeightTrace = chatViewport.scrollHeight;
+            const primaryScrollTopTrace = chatViewport.scrollTop;
+
+            if (!appendAtTop) {
+                dynamicContentArea.innerHTML = '';
+            }
+
+            const htmlBufferFragments = [];
+            let calendarGroupIndexMarker = null;
+
+            for (let i = lowerLoadedIndex; i < upperLoadedIndex; i++) {
+                const msg = activeDataSet[i];
+                if (!msg) continue;
+
+                if (msg.dateStamp !== calendarGroupIndexMarker) {
+                    htmlBufferFragments.push(`<div class="flex justify-center my-3" data-date-marker="${msg.dateStamp}"><span class="bg-white dark:bg-[#202c33] text-slate-500 dark:text-wa-metaLight text-xs px-3 py-1.5 rounded-lg shadow-sm font-medium border border-slate-100 dark:border-slate-800/50">${computeLocalizedHumanDate(msg.dateStamp)}</span></div>`);
+                    calendarGroupIndexMarker = msg.dateStamp;
+                }
+
+                const isAssignedToRightSide = (msg.senderIdentity.toLowerCase() === assignedTargetUser.toLowerCase());
+                
+                const finalAlignmentSide = isInvertedViewDirection 
+                    ? (isAssignedToRightSide ? 'justify-start' : 'justify-end') 
+                    : (isAssignedToRightSide ? 'justify-end' : 'justify-start');
+
+                const useOutboundBubbleStyling = isAssignedToRightSide;
+
+                if (!useOutboundBubbleStyling && !userColorRegistry[msg.senderIdentity]) {
+                    userColorRegistry[msg.senderIdentity] = colorPaletteClasses[Object.keys(userColorRegistry).length % colorPaletteClasses.length];
+                }
+                const profileColorAllocationClass = useOutboundBubbleStyling ? '' : userColorRegistry[msg.senderIdentity];
+                const searchQueryToken = isSearchingActive ? liveSearchInput.value.toLowerCase() : '';
+
+                htmlBufferFragments.push(`
+                    <div class="flex w-full mb-1 ${finalAlignmentSide}">
+                        <div class="max-w-[82%] px-2.5 py-1.5 rounded-lg shadow-sm text-[14.2px] leading-[19px] relative ${
+                            useOutboundBubbleStyling 
+                            ? 'bg-wa-bubbleOutLight dark:bg-wa-bubbleOutDark rounded-tr-none' 
+                            : 'bg-wa-bubbleInLight dark:bg-wa-bubbleInDark rounded-tl-none'
+                        }">
+                            ${!useOutboundBubbleStyling ? `<span class="block text-[12.5px] mb-0.5 ${profileColorAllocationClass}">${sanitizeInputBlocks(msg.senderIdentity)}</span>` : ''}
+                            <span class="break-words whitespace-pre-wrap text-wa-textMainLight dark:text-wa-textMainDark">${resolveTextNodeConversions(msg.bodyPayload, searchQueryToken)}</span>
+                            <div class="float-right mt-1 ml-3 -mb-1 flex items-center gap-1 text-[11px] text-wa-metaLight select-none pointer-events-none">
+                                <span>${msg.timeStamp}</span>
+                                ${useOutboundBubbleStyling ? `<span class="text-wa-tickBlue font-sans text-xs">✓✓</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+
+            if (appendAtTop) {
+                dynamicContentArea.insertAdjacentHTML('afterbegin', htmlBufferFragments.join(''));
+                chatViewport.scrollTop = primaryScrollTopTrace + (chatViewport.scrollHeight - primaryScrollHeightTrace);
+            } else {
+                dynamicContentArea.innerHTML = htmlBufferFragments.join('');
+            }
+        }
+
+        // Handle infinite-style reverse scrolling thresholds
+        let scrollThrottleLock = false;
+        function manageViewportScrollWindowThrottled() {
+            if (scrollThrottleLock) return;
+            
+            scrollThrottleLock = true;
+            requestAnimationFrame(() => {
+                const activeDataSet = isSearchingActive ? matchingSearchRecords : masterChatRecords;
+
+                if (chatViewport.scrollTop < 150 && lowerLoadedIndex > 0) {
+                    const tracePreviousLowerBound = lowerLoadedIndex;
+                    lowerLoadedIndex = Math.max(0, lowerLoadedIndex - CHUNK_SIZE);
+                    upperLoadedIndex = tracePreviousLowerBound;
+
+                    renderActiveViewportChunkRange(true);
+                }
+                scrollThrottleLock = false;
+            });
+        }
+
+        function resolveTextNodeConversions(sourceText, searchQueryToken = '') {
+            let coreSanitizedString = sanitizeInputBlocks(sourceText);
+
+            if (coreSanitizedString.includes("&lt;Media omitted&gt;") || coreSanitizedString.includes("📷 photo") || coreSanitizedString.includes("🎵 audio")) {
+                return `<span class="text-slate-400 dark:text-wa-metaLight italic flex items-center gap-1.5 py-0.5">📂 ${coreSanitizedString}</span>`;
+            }
+
+            const standardUrlCaptureRegex = /(https?:\/\/[^\s]+)/g;
+            coreSanitizedString = coreSanitizedString.replace(standardUrlCaptureRegex, function(matchingUrl) {
+                return `<a href="${matchingUrl}" target="_blank" rel="noopener noreferrer" class="text-sky-600 dark:text-wa-tickBlue hover:underline break-all">${matchingUrl}</a>`;
+            });
+
+            if (searchQueryToken) {
+                const escapingMatchQuery = searchQueryToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regularEvaluationInstance = new RegExp(`(${escapingMatchQuery})`, 'gi');
+                coreSanitizedString = coreSanitizedString.replace(regularEvaluationInstance, `<mark class="bg-amber-200 text-slate-900 rounded-[2px]">$1</mark>`);
+            }
+
+            return coreSanitizedString;
+        }
+
+        function sanitizeInputBlocks(textInputString) {
+            return textInputString.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function computeLocalizedHumanDate(isoDateString) {
+            const dateParsingFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            try {
+                const instances = new Date(isoDateString);
+                if (isNaN(instances.getTime())) return isoDateString;
+                return instances.toLocaleDateString(undefined, dateParsingFormatOptions);
+            } catch(error) {
+                return isoDateString;
+            }
+        }
+
+        function runContentFilteringSearch() {
+            const queryTarget = liveSearchInput.value.toLowerCase().trim();
+
+            if (!queryTarget) {
+                isSearchingActive = false;
+                matchingSearchRecords = [];
+                initializeVirtualizedViewBounds();
+                return;
+            }
+
+            isSearchingActive = true;
+            matchingSearchRecords = masterChatRecords.filter(msg => msg.bodyPayload.toLowerCase().includes(queryTarget));
+            
+            initializeVirtualizedViewBounds();
+        }
+
+        function focusTimelineDateAnchor() {
+            const targetJumpIndex = calendarJumpInput.value;
+            if (!targetJumpIndex) return;
+
+            const activeDataSet = isSearchingActive ? matchingSearchRecords : masterChatRecords;
+            const targetElementIndex = activeDataSet.findIndex(msg => msg.dateStamp === targetJumpIndex);
+
+            if (targetElementIndex !== -1) {
+                lowerLoadedIndex = Math.max(0, targetElementIndex - 20);
+                upperLoadedIndex = Math.min(activeDataSet.length, lowerLoadedIndex + CHUNK_SIZE);
+                
+                renderActiveViewportChunkRange(false);
+
+                setTimeout(() => {
+                    const matchNode = chatViewport.querySelector(`[data-date-marker="${targetJumpIndex}"]`);
+                    if (matchNode) matchNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
+            } else {
+                alert("No communication metrics recorded on that specified tracking timeline frame date.");
+            }
+        }
+
+        function flushStateWorkspace() {
+            masterChatRecords = [];
+            matchingSearchRecords = [];
+            isSearchingActive = false;
+            isInvertedViewDirection = false;
+            waFileInput.value = '';
+            selfUsernameInput.value = '';
+            wallpaperInput.value = '';
+            avatarRightInput.value = '';
+            avatarLeftInput.value = '';
+            customWallpaperUrl = 'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png';
+            customAvatarRightUrl = '';
+            customAvatarLeftUrl = '';
+            dynamicContentArea.innerHTML = '';
+            
+            applyActiveWallpaperAsset();
+            uploadStage.classList.remove('hidden');
+            viewerPlaceholder.classList.remove('opacity-0', 'pointer-events-none');
+            analyticsStage.classList.add('hidden');
+            resetWorkspaceBtn.classList.add('hidden');
+
+            chatHeaderTitle.textContent = "Chat Thread";
+            chatHeaderSubtitle.textContent = "Ready to parse logs";
+            chatAvatar.textContent = "WA";
+            chatAvatar.style.backgroundImage = '';
+        }
+
+        function generateChatCapturePng() {
+            const traceOriginalEmojiSymbol = captureScreenshotBtn.innerHTML;
+            captureScreenshotBtn.innerHTML = "⏳ Rendering Snapshot...";
+            
+            html2canvas(dynamicContentArea, {
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: window.getComputedStyle(chatViewport).backgroundColor,
+            }).then(renderedCanvasElement => {
+                const derivedPngDataUri = renderedCanvasElement.toDataURL("image/png");
+                const transmissionVirtualAnchor = document.createElement('a');
+                transmissionVirtualAnchor.href = derivedPngDataUri;
+                transmissionVirtualAnchor.download = `WhatsApp_Virtualized_Snapshot_${new Date().toISOString().slice(0,10)}.png`;
+                document.body.appendChild(transmissionVirtualAnchor);
+                transmissionVirtualAnchor.click();
+                document.body.removeChild(transmissionVirtualAnchor);
+                captureScreenshotBtn.innerHTML = traceOriginalEmojiSymbol;
+            }).catch(runtimeErrorLog => {
+                console.error(runtimeErrorLog);
+                alert("Failed assembling viewport analytics graphics structure output mappings.");
+                captureScreenshotBtn.innerHTML = traceOriginalEmojiSymbol;
+            });
+        }
+    </script>
+</body>
+</html>
